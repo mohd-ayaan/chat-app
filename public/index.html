@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Chat</title>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      // load the Socket.IO client library from own server, then connect to the server in real-time.
+      const socket = io();
+      function sendMessage() {
+        const msg = document.getElementById('message').value;
+        socket.emit('chat message', msg);
+      }
+
+
+      socket.on('chat message', msg => {
+        document.getElementById('chat').innerHTML += `<p>${msg}</p>`;
+      });
+    </script>
+  </head>
+  <body>
+    <input id="message" type="text" />
+    <button onclick="sendMessage()">Send</button>
+    <div id="chat"></div>
+  </body>
+</html>
