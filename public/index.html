@@ -1,26 +1,109 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Chat</title>
-    
-    <script src="/socket.io/socket.io.js"></script>
+<head>
+    <title>Modern Chat</title>
+    <link rel="stylesheet" href="/style.css"> <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            Welcome to the Chat, <span id="nameDisplay"></span>!
+        </div>
+
+        <div id="chat">
+            </div>
+
+        <div class="message-input-area">
+            <input id="message" type="text" placeholder="Type a message or /whisper user Hello" autocomplete="off" />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
     <script>
-      // load the Socket.IO client library from own server, then connect to the server in real-time.
-      const socket = io();
-      function sendMessage() {
-        const msg = document.getElementById('message').value;
-        socket.emit('chat message', msg);
-      }
+        const socket = io();
+        let username = localStorage.getItem('chatUsername'); // Try to get username from local storage
 
+        if (!username) {
+            username = prompt("Please enter your username:");
+            while (!username || username.trim() === '') {
+                username = prompt("Username cannot be empty. Please enter your username:");
+            }
+            localStorage.setItem('chatUsername', username); // Store for future sessions
+        }
 
-      socket.on('chat message', msg => {
-        document.getElementById('chat').innerHTML += `<p>${msg}</p>`;
-      });
+        document.getElementById("nameDisplay").innerText = username;
+        socket.emit('register', username);
+
+        // Function to scroll chat to bottom
+        function scrollToBottom() {
+            const chat = document.getElementById('chat');
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('message');
+            const msg = input.value;
+
+            if (!msg.trim()) return;
+
+            if (msg.startsWith('/whisper')) {
+                const [, to, ...rest] = msg.split(' ');
+                const text = rest.join(' ');
+                if (to && text) {
+                    socket.emit('private message', { to, from: username, text });
+                    // Optionally show your own whisper in your chat window as a unique style
+                    appendMessage({ user: `🔒 You whispered to ${to}`, text: text, type: 'whisper' });
+                } else {
+                    alert("Usage: /whisper <username> <message>");
+                }
+            } else {
+                socket.emit('chat message', { user: username, text: msg }, () => {
+                    console.log('✅ Server received the message');
+                });
+            }
+
+            input.value = '';
+            scrollToBottom();
+        }
+
+        // Function to append message with specific styling
+        function appendMessage(data) {
+            const chat = document.getElementById('chat');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message-bubble');
+
+            let messageContent;
+            if (data.type === 'whisper') {
+                messageDiv.classList.add('whisper-message');
+                messageContent = `<strong>${data.user}:</strong> ${data.text}`;
+            } else if (data.user === username) {
+                messageDiv.classList.add('my-message');
+                messageContent = `<strong>You:</strong> ${data.text}`; // Show 'You' for your own messages
+            } else {
+                messageDiv.classList.add('other-message');
+                messageContent = `<strong>${data.user}:</strong> ${data.text}`;
+            }
+
+            messageDiv.innerHTML = messageContent;
+            chat.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        socket.on('chat message', data => {
+            appendMessage(data);
+        });
+
+        // Send message on Enter key press
+        document.getElementById('message').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Auto-focus on message input when loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('message').focus();
+        });
     </script>
-  </head>
-  <body>
-    <input id="message" type="text" />
-    <button onclick="sendMessage()">Send</button>
-    <div id="chat"></div>
-  </body>
+</body>
 </html>
